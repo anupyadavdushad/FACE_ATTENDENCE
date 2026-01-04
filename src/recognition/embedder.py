@@ -1,15 +1,16 @@
 import cv2
 import numpy as np
 from numpy.linalg import norm 
+from keras_facenet import FaceNet
 
 class FaceEmbedder:
-    def __init__(self, model):
+    def __init__(self, model=None):
         """
-        model: a loaded face embedding model
-        example: FaceNet, InsighFace, etc.
+        model: uses FaceNet from keras_facenet
         """
+        if model is None:
+            self.model = FaceNet()
 
-        self.model = model 
 
     def preprocess(self, face_img):
         """
