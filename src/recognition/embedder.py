@@ -30,7 +30,7 @@ class FaceEmbedder:
         Returns L2-normalized embedding vector
         """
         preprocessed = self.preprocess(face_img)
-        embedding = self.model.predict(preprocessed)[0]
+        embedding = self.model.embeddings(preprocessed)[0]
         embedding = embedding / norm(embedding)
         
         return embedding 
