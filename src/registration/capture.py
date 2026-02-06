@@ -29,7 +29,7 @@ while cap.isOpened and saved_count < MAX_SAMPLES:
     ret, frame = cap.read()
     
     if not ret: #Camera fails
-        break
+        breakx
     
     rgb = cv2.cvtColor(frame,cv2.COLOR_BGR2RGB)
     faces = detector.detect_faces(rgb)

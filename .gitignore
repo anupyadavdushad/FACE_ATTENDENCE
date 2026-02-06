@@ -4,3 +4,4 @@ __pycache__/
 data/
 embeddings/
 .env
+EDA.ipynb
