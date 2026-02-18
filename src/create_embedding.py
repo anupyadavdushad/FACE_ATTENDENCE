@@ -1,48 +1,44 @@
 import os
-import pickle
-from recognition.embedder import FaceEmbedder
 import cv2
 import numpy as np
 
-# -------- CONFIG --------
-BASE_DIR = os.path.dirname(os.path.dirname(__file__))
-RAW_DATA_DIR = os.path.join(BASE_DIR, "data", "raw")
-EMBEDDING_PATH = os.path.join(BASE_DIR, "data", "embeddings.pkl")
-# ------------------------
+from config.settings import RAW_DATA_DIR, EMBEDDINGS_FILE, EMBEDDINGS_DIR
+from src.utils import ensure_dir, save_pickle
+from src.recognition.embedder import FaceEmbedder
 
-embedder = FaceEmbedder()
-all_embeddings = {}
 
-for user_id in os.listdir(RAW_DATA_DIR):
-    user_path = os.path.join(RAW_DATA_DIR, user_id)
+def create_embeddings():
+    ensure_dir(EMBEDDINGS_DIR)
 
-    if not os.path.isdir(user_path):
-        continue
+    embedder = FaceEmbedder()
+    embeddings_db = []
 
-    print(f"[INFO] Processing user: {user_id}")
-    embeddings = []
+    for student_folder in os.listdir(RAW_DATA_DIR):
+        folder_path = os.path.join(RAW_DATA_DIR, student_folder)
 
-    for img_name in os.listdir(user_path):
-        if not img_name.lower().endswith((".jpg", ".jpeg", ".png")):
+        if not os.path.isdir(folder_path):
             continue
 
-        img_path = os.path.join(user_path, img_name)
-        img = cv2.imread(img_path)
+        reg_no, name = student_folder.split("_", 1)
 
-        if img is None:
-            print(f"[WARN] Failed to read {img_path}")
-            continue
+        for img_file in os.listdir(folder_path):
+            img_path = os.path.join(folder_path, img_file)
 
-        emb = embedder.get_embedding(img)
-        embeddings.append(emb)
+            img = cv2.imread(img_path)
+            if img is None:
+                continue
 
-    if embeddings:
-        all_embeddings[user_id] = np.array(embeddings)
-        print(f"[INFO] Saved {len(embeddings)} embeddings for {user_id}")
-    else:
-        print(f"[WARN] No valid images for {user_id}")
+            face = embedder.get_face(img)
+            if face is None:
+                continue
 
-with open(EMBEDDING_PATH, "wb") as f:
-    pickle.dump(all_embeddings, f)
+            embedding = embedder.get_embedding(face)
 
-print(f"[DONE] All embeddings saved to {EMBEDDING_PATH}")
+            embeddings_db.append({
+                "name": name,
+                "reg_no": reg_no,
+                "embedding": embedding
+            })
+
+    save_pickle(embeddings_db, EMBEDDINGS_FILE)
+    return EMBEDDINGS_FILE

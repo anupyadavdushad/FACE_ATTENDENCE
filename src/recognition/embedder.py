@@ -1,40 +1,28 @@
 import cv2
 import numpy as np
-from numpy.linalg import norm
-from keras_facenet import FaceNet
+from config.settings import IMAGE_SIZE
+
 
 class FaceEmbedder:
     def __init__(self):
-        self.model = FaceNet()
+        self.detector = cv2.CascadeClassifier(
+            cv2.data.haarcascades + "haarcascade_frontalface_default.xml"
+        )
 
-    def preprocess(self, img):
-        # Force valid image
-        if img is None:
-            raise ValueError("Input image is None")
+    def get_face(self, frame):
+        gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+        faces = self.detector.detectMultiScale(gray, 1.3, 5)
 
-        # # Handle grayscale images
-        # if len(img.shape) == 2:
-        #     img = cv2.cvtColor(img, cv2.COLOR_GRAY2BGR)
+        if len(faces) == 0:
+            return None
 
-        # # Handle RGBA just in case
-        # if img.shape[2] == 4:
-        #     img = cv2.cvtColor(img, cv2.COLOR_BGRA2BGR)
+        x, y, w, h = faces[0]
+        face = frame[y:y+h, x:x+w]
+        face = cv2.resize(face, IMAGE_SIZE)
+        return face
 
-        # BGR -> RGB
-        img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-
-        # Resize
-        img = cv2.resize(img, (160, 160))
-
-        return img
-
-    def get_embedding(self, img):
-        img = self.preprocess(img)
-
-        # IMPORTANT: batch dimension
-        batch = np.expand_dims(img, axis=0)  # (1, 160, 160, 3)
-
-        embedding = self.model.embeddings(batch)[0]
-        embedding = embedding / norm(embedding)
-
+    def get_embedding(self, face_img):
+        gray = cv2.cvtColor(face_img, cv2.COLOR_BGR2GRAY)
+        embedding = cv2.resize(gray, (32, 32)).flatten()
+        embedding = embedding / np.linalg.norm(embedding)
         return embedding

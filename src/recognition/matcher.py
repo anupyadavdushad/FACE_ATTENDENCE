@@ -1,40 +1,48 @@
-import pickle
 import numpy as np
-from src.utils import cosine_similarity
+from config.settings import EMBEDDINGS_FILE, ATTENDANCE_LOG_DIR
+from src.utils import load_pickle, ensure_dir, save_attendance_csv
+from src.recognition.embedder import FaceEmbedder
 
 
-def FaceMatcher(
-    query_embedding,
-    embeddings_file_path=r"D:\Face_Attendence\data\embeddings.pkl",
-    top_k=5
-):
-    # Load stored embeddings
-    with open(embeddings_file_path, "rb") as f:
-        all_embeddings = pickle.load(f)
+def match_face(frame, threshold=0.6):
+    """
+    Returns: (status, best_match, score)
 
-    scores = {}
+    status = "MATCH" or "UNKNOWN" or "NO_FACE"
+    best_match = {"name":..., "reg_no":...} or None
+    """
 
-    # Loop over each registered user
-    for user_id, embeddings in all_embeddings.items():
-        similarities = []
+    embedder = FaceEmbedder()
+    db = load_pickle(EMBEDDINGS_FILE)
 
-        # Compare query with each stored embedding
-        for emb in embeddings:
-            sim = cosine_similarity(query_embedding, emb)
-            similarities.append(sim)
+    face = embedder.get_face(frame)
 
-        # Sort similarities: highest first (cosine similarity)
-        similarities = sorted(similarities, reverse=True)
+    if face is None:
+        return "NO_FACE", None, None
 
-        # Take top-K closest embeddings
-        top_k_similarities = similarities[:top_k]
+    emb = embedder.get_embedding(face)
 
-        # Average score
-        avg_score = sum(top_k_similarities) / len(top_k_similarities)
+    best_match = None
+    best_score = -1
 
-        scores[user_id] = avg_score
+    for record in db:
+        stored_emb = record["embedding"]
+        similarity = np.dot(emb, stored_emb)
 
-    # Pick the user with highest similarity
-    best_match = max(scores, key=scores.get)
+        if similarity > best_score:
+            best_score = similarity
+            best_match = record
 
-    return best_match
+    if best_match and best_score >= threshold:
+        return "MATCH", best_match, best_score
+
+    return "UNKNOWN", None, best_score
+
+
+def mark_attendance(best_match):
+    ensure_dir(ATTENDANCE_LOG_DIR)
+    name = best_match["name"]
+    reg_no = best_match["reg_no"]
+
+    filepath = save_attendance_csv(ATTENDANCE_LOG_DIR, name, reg_no)
+    return filepath
